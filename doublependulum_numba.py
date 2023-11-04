@@ -102,6 +102,7 @@ def dHdp1(x, m, L):
 
 # Derivate of H with respect to p2
 @nmb.jit(nopython=True)
+
 def dHdp2(x, m, L):
     # TODO: Write and return the formula for the derivative of H with respect to p2 here
 
