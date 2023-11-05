@@ -64,15 +64,26 @@ class BaseSystem:
 
         pass
 
+    def force_spec(self,theta, dtheta, osc): 
+        """ Virtual method: implemented by the childc lasses  """
+
+        pass
+
 
 class Harmonic(BaseSystem):
     def force(self, osc):
         return - osc.m * ( osc.c*osc.theta + osc.gamma*osc.dtheta )
 
-
+    def force_spec(self,theta, dtheta, osc): 
+        return - osc.m * (osc.c*theta + osc.gamma*dtheta )
+        
+        
 class Pendulum(BaseSystem):
     def force(self, osc):
         return - osc.m * ( osc.c*np.sin(osc.theta) + osc.gamma*osc.dtheta )
+    
+    def force_spec(self,theta, dtheta, osc): 
+        return - osc.m * ( osc.c*np.sin(theta) + osc.gamma*dtheta )
 
 
 class BaseIntegrator:
@@ -96,6 +107,7 @@ class BaseIntegrator:
             obs.energy.append(0.5 * osc.m * osc.L ** 2 * osc.dtheta ** 2 + 0.5 * osc.m * G * osc.L * osc.theta ** 2)
         else :
             # Pendulum energy
+            obs.energy.append(0.5 * osc.m * osc.L ** 2 * osc.dtheta ** 2 + osc.m * G * osc.L * (1 - np.cos(osc.theta))) 
             # TODO: Append the total energy for the pendulum (use the correct formula!)
 
 
@@ -113,6 +125,8 @@ class EulerCromerIntegrator(BaseIntegrator):
         accel = simsystem.force(osc) / osc.m
         osc.t += self.dt
         # TODO: Implement the integration here, updating osc.theta and osc.dtheta
+        osc.dtheta += accel * self.dt
+        osc.theta += osc.dtheta * self.dt
 
 
 class VerletIntegrator(BaseIntegrator):
@@ -120,13 +134,37 @@ class VerletIntegrator(BaseIntegrator):
         accel = simsystem.force(osc) / osc.m
         osc.t += self.dt
         # TODO: Implement the integration here, updating osc.theta and osc.dtheta
-
+        osc.theta += osc.dtheta * self.dt + 0.5*accel*(self.dt**2)
+        # need to calculate acceleration in new position aswell 
+        # assumes accel is not a function of speed (correct as long as dampening i zero, wrong otherwise)
+        # best practice would be to use symplectic or newtons method to get v(t + dt) as a(t+dt) depends on v(t+dt)
+        acceldt = simsystem.force(osc) / osc.m
+        osc.dtheta += 0.5*(acceldt + accel)*self.dt
 
 class RK4Integrator(BaseIntegrator):
     def timestep(self, simsystem, osc, obs):
         accel = simsystem.force(osc) / osc.m 
-        # osc.t += self.dt
+        osc.t += self.dt
         # TODO: Implement the integration here, updating osc.theta and osc.dtheta
+        theta = osc.theta 
+        dtheta = osc.dtheta
+
+        a1 = accel * self.dt
+        b1 = osc.dtheta * self.dt
+
+        a2 = (simsystem.force_spec(theta + 0.5 * b1, dtheta + 0.5 * a1, osc) / osc.m) * self.dt
+        b2 = (dtheta + 0.5 * a1) * self.dt
+
+        a3 = (simsystem.force_spec(theta + 0.5 * b2, dtheta + 0.5 * a2, osc) / osc.m) * self.dt
+        b3 = (dtheta + 0.5 * a2) * self.dt
+
+        a4 = (simsystem.force_spec(theta + 0.5 * b3, dtheta + 0.5 * a3, osc) / osc.m) * self.dt
+        b4 = (dtheta + 0.5 * a3) * self.dt
+
+        osc.dtheta += (1/6) * (a1 + 2 * a2 + 2 * a3 + a4)
+        osc.theta += (1/6) * (b1 + 2 * b2 + 2 * b3 + b4)
+        
+
 
 
 # Animation function which integrates a few steps and return a line for the pendulum
@@ -196,7 +234,7 @@ class Simulation:
         plt.waitforbuttonpress(10)
 
     # Plot coordinates and energies (to be called after running)
-    def plot_observables(self, title="simulation", ref_E=None):
+    def plot_observables(self, integrator, title="simulation", ref_E=None):
 
         plt.clf()
         plt.title(title)
@@ -208,14 +246,70 @@ class Simulation:
         plt.xlabel('time')
         plt.ylabel('observables')
         plt.legend()
-        plt.savefig(title + ".pdf")
+        plt.savefig("0.1" + "verharm" + str(integrator.dt) + ".png")
         plt.show()
+    
+    def plotharmonic(self, theta0, osc): 
+        # assumes dtheta0 = 0 
+        plt.clf()
+        plt.title("Harmonic exact solution")
+        t = np.array(self.obs.time)
+        pos = theta0*np.cos((osc.c**0.5)*t)
+        vel = -(osc.c**0.5)*theta0*np.sin((osc.c**0.5)*t)
+        # 0.5 * osc.m * osc.L ** 2 * osc.dtheta ** 2 + 0.5 * osc.m * G * osc.L * osc.theta ** 2
+        E = 0.5 * osc.m * osc.L ** 2 * (vel ** 2) + 0.5 * osc.m * G * osc.L * (pos ** 2)
+        plt.plot(t, pos, 'b-', label = "Postion")
+        plt.plot(t, vel, 'r-', label="Velocity")
+        plt.plot(t,E, 'g-', label="Energy")
+        plt.xlabel('time')
+        plt.ylabel('observables')
+        plt.legend()
+
+        plt.show()
+  
+
+
 
 
 # It's good practice to encapsulate the script execution in 
 # a function (e.g. for profiling reasons)
 def exercise_11() :
+    oscillator = Oscillator(theta0=np.pi * 0.1)
+    sim = Simulation(oscillator)
+    simsystem = Harmonic()
+    #integrator = EulerCromerIntegrator()
+    integrator = VerletIntegrator(_dt = 0.01)
+    #integrator = RK4Integrator()
+    sim.run(simsystem, integrator)
+    sim.plot_observables(integrator)
+
+    oscillator = Oscillator(theta0=np.pi * 0.1)
+    sim = Simulation(oscillator)
+    simsystem = Harmonic()
+    #integrator = EulerCromerIntegrator()
+    integrator = VerletIntegrator(_dt = 0.1)
+    #integrator = RK4Integrator()
+    sim.run(simsystem, integrator)
+    sim.plot_observables(integrator)
+
+    oscillator = Oscillator(theta0=np.pi * 0.1)
+    sim = Simulation(oscillator)
+    simsystem = Harmonic()
+    #integrator = EulerCromerIntegrator()
+    integrator = VerletIntegrator(_dt = 0.5)
+    #integrator = RK4Integrator()
+    sim.run(simsystem, integrator)
+    sim.plot_observables(integrator)
+
+    sim.plotharmonic(np.pi *0.1, oscillator)
+
+
+
     # TODO
+
+
+def exercise_12(): 
+    return 
 
 
 """
