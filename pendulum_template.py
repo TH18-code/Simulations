@@ -266,6 +266,25 @@ class Simulation:
         plt.legend()
 
         plt.show()
+
+    def get_period(self): 
+        obs = self.obs
+        # period is the time it takes to go from positive to negative to positive to negative
+        s_changes = 0 
+        t = []
+
+        s = sign(self.obs.pos[0])
+
+        for i in range(len(self.obs.pos)): 
+            si = sign(self.obs.pos[i])
+            if si != s: 
+                s = si
+                s_changes +=1 
+                t.append(self.obs.time[i])
+            if s_changes == 3: 
+                break 
+         
+        return t[-1] - t[0]
   
 
 
@@ -282,6 +301,8 @@ def exercise_11() :
     #integrator = RK4Integrator()
     sim.run(simsystem, integrator)
     sim.plot_observables(integrator)
+    t = sim.get_period()
+    print(t)
 
     oscillator = Oscillator(theta0=np.pi * 0.1)
     sim = Simulation(oscillator)
@@ -301,6 +322,7 @@ def exercise_11() :
     sim.run(simsystem, integrator)
     sim.plot_observables(integrator)
 
+
     sim.plotharmonic(np.pi *0.1, oscillator)
 
 
@@ -309,6 +331,10 @@ def exercise_11() :
 
 
 def exercise_12(): 
+
+
+
+
     return 
 
 
