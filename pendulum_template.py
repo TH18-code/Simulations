@@ -331,6 +331,31 @@ def exercise_11() :
 
 
 def exercise_12(): 
+    oscillator = Oscillator(theta0=np.pi * 0.1)
+    sim = Simulation(oscillator)
+    simsystem = Pendulum()  
+    integrator = VerletIntegrator(_dt = 0.01)
+    sim.run(simsystem, integrator)
+    T = []
+   
+   
+    theta0s = np.arange(start = 0.001, stop = np.pi * 0.7, step = 0.1)
+    for theta in theta0s: 
+         oscillator = Oscillator(theta0=theta)
+         sim.reset(oscillator)
+         sim.run(simsystem, integrator)
+         T.append(sim.get_period())
+    
+    perturbs = np.pi*(1 + (1/16)*(theta0s**2) + (11/3072) * (theta0s**4) + (173/737280)*(theta0s**6))
+    
+    plt.clf() 
+    plt.title("Periodtime as a function of intitial values")
+    plt.plot(theta0s, T, 'b-', label = "Period")
+    plt.plot(theta0s, perturbs, 'g-', label = "Perturbation")
+    plt.xlabel("Intital angle $\Theta$")
+    plt.ylabel("Periodtime T")
+    plt.legend()
+    plt.show()
 
 
 
@@ -349,6 +374,6 @@ def exercise_12():
     or to have (a) separate script(s) that include pendulum_template.py as library.
 """
 if __name__ == "__main__" :
-    exercise_11()
-    # exercise_12()
+    #exercise_11()
+    exercise_12()
     # ...
