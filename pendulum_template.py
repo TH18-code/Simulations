@@ -286,6 +286,29 @@ class Simulation:
          
         return t[-1] - t[0]
   
+    def relaxationtime(self): 
+        obs = self.obs
+        theta0 = np.abs(obs.pos[0])
+        reltime = 0
+
+        # loop all positions and find when it has decreased enough, onl works for critically damped system
+        for i in range(len(obs.pos)): 
+            if np.abs(obs.pos[i]) < 0.37 * theta0: 
+                return obs.time[i]
+        
+        return None
+    
+    def phaseportrait(self, title="phaseportait"): 
+        plt.clf()
+        plt.title(title) 
+        plt.plot(self.obs.pos, self.obs.vel, 'b-') 
+        plt.xlabel('Position')
+        plt.ylabel('Velocity')
+        plt.legend()
+        plt.savefig("damped" + str(self.oscillator.gamma) + ".png")
+        plt.show()
+
+
 
 
 
@@ -356,12 +379,39 @@ def exercise_12():
     plt.ylabel("Periodtime T")
     plt.legend()
     plt.show()
+    return
+
+def exercise_13(): 
+    mass = 1 
+    w0 = 2
+    zeta = 4
+    oscillator = Oscillator(m =mass, c = w0**2, theta0 = 1, gamma = zeta * mass)
+    sim = Simulation(oscillator)
+    simsystem = Harmonic()  
+    integrator = EulerCromerIntegrator(_dt = 0.01)
+    sim.run(simsystem, integrator)
+    sim.plot_observables(integrator)
+    print(sim.relaxationtime())
+
+    #sim.run_animate(simsystem, integrator)
 
 
+    return
 
+def exercise_14(): 
+    mass = 1 
+    w0 = 2
+    zeta = 1
+    oscillator = Oscillator(m =mass, c = w0**2, theta0 = np.pi/2, gamma = zeta * mass)
+    sim = Simulation(oscillator)
+    simsystem = Harmonic()  
+    integrator = EulerCromerIntegrator(_dt = 0.01)
+    sim.run(simsystem, integrator)
+    sim.plot_observables(integrator)
+    sim.phaseportrait()
+    print(sim.relaxationtime())
 
-    return 
-
+    return
 
 """
     This directive instructs Python to run what comes after ' if __name__ == "__main__" : '
@@ -375,5 +425,6 @@ def exercise_12():
 """
 if __name__ == "__main__" :
     #exercise_11()
-    exercise_12()
+    #exercise_12()
+    exercise_14()
     # ...
